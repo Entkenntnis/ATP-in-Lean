@@ -112,8 +112,57 @@ def asr_power : ℕ → Set (A × A) → Set (A × A)
 
 def asr_identity : Set (A × A) → Set (A × A) := asr_power 0
 
-def asr_transitive_closure (r : Set (A × A)) : Set (A × A) :=
-  { p | ∃ n : ℕ, n > 0 ∧ p ∈ asr_power n r }
+-- Reuse a fixed relation `r` across the following defs using a section-scoped variable.
+section
+variable (r : Set (A × A))
 
-def asr_reflexive_transitive_closure (r : Set (A × A)) : Set (A × A) :=
-  { p | ∃ n : ℕ, p ∈ asr_power n r }
+def asr_transitive_closure : Set (A × A) :=
+  ⋃ n : ℕ, asr_power (n + 1) r
+
+def asr_reflexive_transitive_closure : Set (A × A) :=
+  ⋃ n : ℕ, asr_power n r
+
+def asr_reflexive_closure : Set (A × A) :=
+  asr_identity r ∪ asr_power 1 r
+
+def asr_inverse : Set (A × A) :=
+  { p | r (p.2, p.1) }
+
+def asr_symmetric_closure : Set (A × A) :=
+  r ∪ asr_inverse r
+
+def asr_transitive_symmetric_closure : Set (A × A) :=
+  asr_transitive_closure (asr_symmetric_closure r)
+
+def asr_equivalence_closure : Set (A × A) :=
+  asr_reflexive_transitive_closure (asr_symmetric_closure r)
+
+-- An element b is reducible if it relates to some c via r
+def asr_reducible (b : A) := ∃ c : A, (b, c) ∈ r
+
+def asr_irreducible (b: A) := ¬ asr_reducible r b
+
+def asr_is_normalform_of (c: A) (b: A) :=
+  (b, c) ∈ asr_reflexive_transitive_closure r ∧ asr_irreducible r c
+
+-- A relation is terminating if there is no infinite chain b₀ → b₁ → b₂ → ···
+def asr_terminating :=
+  ¬ ∃ f : ℕ → A, ∀ n : ℕ, (f n, f (n + 1)) ∈ r
+
+-- Normalizing means every element has a normal form reachable via r
+def asr_normalizing : Prop := ∀ b : A, ∃ c : A, asr_is_normalform_of r c b
+
+-- Variant restricted to a subset S ⊆ A
+def asr_normalizing_on (S : Set A) : Prop :=
+  ∀ ⦃b : A⦄, b ∈ S → ∃ c : A, c ∈ S ∧ asr_is_normalform_of r c b
+
+end
+
+
+
+-- Exercise Sheet 1 =========
+
+
+
+
+-- end ======================
