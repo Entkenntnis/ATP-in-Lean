@@ -124,7 +124,6 @@ def asr_power : ℕ → Set (A × A) → Set (A × A)
 
 def asr_identity : Set (A × A) → Set (A × A) := asr_power 0
 
-
 def asr_transitive_closure : Set (A × A) :=
   ⋃ n : ℕ, asr_power (n + 1) r
 
@@ -234,11 +233,11 @@ end ARS
 -- More definitions, reusing from matlib if possible
 -- ===================================================
 namespace Orderings
-#check refl
-#check irrefl
-#check antisymm
-#check trans
-#check total_of
+-- #check refl
+-- #check irrefl
+-- #check antisymm
+-- #check trans
+-- #check total_of
 end Orderings
 
 
@@ -354,7 +353,52 @@ def S' := asr_symmetric_closure S
 
 def S'' := asr_equivalence_closure S
 
+-- TODO: this proof is completely over the top
 example : S ≠ S' ∧ S ≠ S'' ∧ S' ≠ S'' := by
-  sorry
+  -- S ≠ S'
+  constructor
+  · intro h
+    have hyS' : (y2, y1) ∈ S' := by
+      simp [S', asr_symmetric_closure]
+      right
+      unfold asr_inverse S
+      exact rfl -- kinda weird
+    have hyNotS : (y2, y1) ∉ S := by
+      simp [S]
+    rw [h] at hyNotS
+    contradiction
+  -- S ≠ S''
+  constructor
+  · intro h
+    have hyyS'' : (y1, y1) ∈ S'' := by
+      unfold S'' asr_equivalence_closure asr_reflexive_transitive_closure
+      simp; use 0; simp [asr_power]
+    have hyyNotS : (y1, y1) ∉ S := by
+      simp [S]
+    rw [h] at hyyNotS
+    contradiction
+  -- S' ≠ S''
+  · intro h
+    have hyyS'' : (y1, y1) ∈ S'' := by
+      unfold S'' asr_equivalence_closure asr_reflexive_transitive_closure
+      simp; use 0; simp [asr_power]
+    have hyyNotS' : (y1, y1) ∉ S' := by
+      unfold S' asr_symmetric_closure
+      simp
+      constructor
+      · simp [S]
+      · unfold asr_inverse; simp;
+        intro h
+        unfold S at h
+        simp at h
+        have t : y1 ≠ y2 := by simp
+        have t': (y1, y1) = (y1, y2) := by -- this is weird
+          apply h;
+        have t'': y1 = y2 := by
+          rw [Prod.mk.injEq] at t' -- some magic
+          exact t'.2
+        contradiction
+    rw [h] at hyyNotS'
+    contradiction
 
 end ExerciseSheet1
