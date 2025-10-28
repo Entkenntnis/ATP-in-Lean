@@ -247,145 +247,114 @@ end Orderings
 -- ===================================================
 section ExerciseSheet1
 
-open ASR
+open ARS
 
-inductive ASR_Counter
+-- Exercise 1.3 simplified version for counterexample noted in script
+inductive X where
+| e1 | e2 | e3
+
+open X
+
+def R : Set (X × X) :=
+  { p | p = (e1, e2) ∨ p = (e2, e1) ∨ p = (e1, e3) ∨ p = (e2, e3)}
+
+lemma R_e1e2 : (e1, e2) ∈ R := by simp [R]
+lemma R_e2e1 : (e2, e1) ∈ R := by simp [R]
+lemma R_e1e3 : (e1, e3) ∈ R := by simp [R]
+lemma R_e2e3 : (e2, e3) ∈ R := by simp [R]
+
+lemma e3_irreducible : asr_irreducible R e3 := by
+  unfold asr_irreducible asr_reducible
+  simp [R]
+
+lemma e3_normal_of_e3 : asr_is_normalform_of R e3 e3 := by
+  unfold asr_is_normalform_of
+  constructor
+  · unfold asr_reflexive_transitive_closure
+    simp; use 0; simp [asr_power]
+  · exact e3_irreducible
+
+lemma e3_normal_of_e1 : asr_is_normalform_of R e3 e1 := by
+  unfold asr_is_normalform_of
+  constructor
+  · unfold asr_reflexive_transitive_closure
+    simp; use 1; unfold asr_power asr_power comp; simp [R]
+  · exact e3_irreducible
+
+lemma e3_normal_of_e2 : asr_is_normalform_of R e3 e2 := by
+  unfold asr_is_normalform_of
+  constructor
+  · unfold asr_reflexive_transitive_closure
+    simp; use 1; unfold asr_power asr_power comp; simp [R]
+  · exact e3_irreducible
+
+lemma R_normalizing: asr_normalizing R := by
+  unfold asr_normalizing
+  intro x
+  rcases x with e1 | e2 | e3
+  · use e3
+    exact e3_normal_of_e1
+  · use e3
+    exact e3_normal_of_e2
+  · use e3
+    exact e3_normal_of_e3
+
+def toggle : X → X
+| e1 => e2
+| e2 => e1
+| e3 => e1 -- placeholder
+
+def alt : ℕ → X
+| 0 => e1
+| n+1 => toggle (alt n)
+
+lemma alt_never_e3 : ∀ n : ℕ, alt n ≠ e3 := by
+  intro n
+  induction n with
+  | zero => simp [alt]
+  | succ n ih =>
+    simp [alt]
+    rcases alt n with e1 | e2 | e3 <;> simp [toggle]
+
+lemma Counterexample : asr_normalizing R ∧  ¬asr_terminating R := by
+  rw [and_iff_not_or_not]
+  intro h
+  rcases h with h | h
+  · apply h
+    exact R_normalizing
+  · have h' : ¬ asr_terminating R := by
+      unfold asr_terminating
+      rw [not_not]
+      use alt
+      intro n
+      rw [alt]
+      have e1_or_e2 : alt n = e1 ∨ alt n = e2 := by
+        rcases h: alt n with e1 | e2 | e3
+        · simp
+        · simp
+        · exfalso
+          exact (alt_never_e3 n h)
+      rcases e1_or_e2 with e1 | e2
+      · rw [e1]
+        simp [toggle, R]
+      · rw [e2, toggle]
+        simp [R]
+    contradiction
+
+-- Exercise 1.2
+inductive Y where
+| y1 | y2
+
+open Y
+
+def S : Set (Y × Y) :=
+  {p | p = (y1, y2)}
+
+def S' := asr_symmetric_closure S
+
+def S'' := asr_equivalence_closure S
+
+example : S ≠ S' ∧ S ≠ S'' ∧ S' ≠ S'' := by
+  sorry
 
 end ExerciseSheet1
-
--- -- inverse does not hold
--- -- A concrete 3-element counterexample showing that
--- -- normalizing does NOT imply terminating in general.
--- -- We'll build a type with three elements and a relation that loops (infinite chain)
--- -- but still has a normal form reachable from every element.
-
--- namespace Counterexample
-
--- -- a simple 3-element type
--- inductive Three where
--- | a | b | c
--- deriving DecidableEq
-
--- open Three
-
--- -- relation with a 2-cycle a ↔ b and edges to a normal form c
--- -- a → b, b → a, a → c, b → c, and c has no outgoing edges
--- def r3 : Set (Three × Three) :=
---   { p | p = (Three.a, Three.b) ∨ p = (Three.b, Three.a) ∨ p = (Three.a, Three.c) ∨ p = (Three.b, Three.c) }
-
--- -- Handy facts for simp
--- lemma r3_ab : (Three.a, Three.b) ∈ r3 := by simp [r3]
--- lemma r3_ba : (Three.b, Three.a) ∈ r3 := by simp [r3]
--- lemma r3_ac : (Three.a, Three.c) ∈ r3 := by simp [r3]
--- lemma r3_bc : (Three.b, Three.c) ∈ r3 := by simp [r3]
-
--- -- c is irreducible in r3
--- lemma r3_irreducible_c : asr_irreducible r3 Three.c := by
---   -- asr_irreducible r3 c ≡ ¬ ∃ y, (c, y) ∈ r3
---   unfold asr_irreducible asr_reducible
---   -- no pair in r3 starts with c
---   simp [r3]
-
--- -- show that every element reaches c (a normal form) in ≤ 1 step
--- lemma r3_reaches_c : ∀ x : Three, (x, Three.c) ∈ asr_reflexive_transitive_closure r3 := by
---   intro x
---   cases x with
---   | a =>
---     -- a → c in one step
---     unfold asr_reflexive_transitive_closure
---     refine Set.mem_iUnion.mpr ?_
---     refine ⟨1, ?_⟩
---     -- build a membership in comp (id) r3 and rewrite by definition of power 1
---     have hx0 : (Three.a, Three.a) ∈ asr_power 0 r3 := by simp [asr_power]
---     have hcomp : (Three.a, Three.c) ∈ comp (asr_power 0 r3) r3 := ⟨Three.a, hx0, r3_ac⟩
---     simpa [asr_power] using hcomp
---   | b =>
---       -- b → c in one step
---       unfold asr_reflexive_transitive_closure
---       refine Set.mem_iUnion.mpr ?_
---       refine ⟨1, ?_⟩
---     have hx0 : (Three.b, Three.b) ∈ asr_power 0 r3 := by simp [asr_power]
---     have hcomp : (Three.b, Three.c) ∈ comp (asr_power 0 r3) r3 := ⟨Three.b, hx0, r3_bc⟩
---     simpa [asr_power] using hcomp
---   | c =>
---       -- reflexivity: (c, c) in power 0
---       unfold asr_reflexive_transitive_closure
---       refine Set.mem_iUnion.mpr ?_
---     exact ⟨0, by simp [asr_power]⟩
-
--- -- r3 is normalizing: every element can reach c, and c is irreducible
--- lemma r3_normalizing : asr_normalizing r3 := by
---   intro x
---   refine ⟨Three.c, ?_⟩
---   -- asr_is_normalform_of r3 c x ≡ (x, c) ∈ rtc(r3) ∧ irreducible c
---   exact ⟨r3_reaches_c x, r3_irreducible_c⟩
-
--- -- a simple toggle and alternating sequence: a, b, a, b, ...
--- def toggle : Three → Three
--- | Three.a => Three.b
--- | Three.b => Three.a
--- | Three.c => Three.a
-
--- def alt : ℕ → Three
--- | 0 => Three.a
--- | n+1 => toggle (alt n)
-
--- lemma toggle_ne_c (x : Three) : toggle x ≠ Three.c := by
---   cases x <;> simp [toggle]
-
--- lemma alt_ne_c : ∀ n, alt n ≠ Three.c := by
---   intro n; induction n with
---   | zero => simp [alt]
---   | succ n ih =>
---       -- alt (n+1) = toggle (alt n), and toggle never returns c
---       simpa [alt] using toggle_ne_c (alt n)
-
--- lemma alt_is_a_or_b : ∀ n, alt n = Three.a ∨ alt n = Three.b := by
---   intro n; induction n with
---   | zero => simp [alt]
---   | succ n ih =>
---       rcases ih with h | h
---       · simp [alt, toggle, h]
---       · simp [alt, toggle, h]
-
--- lemma alt_step_in_r3 (n : ℕ) : (alt n, alt (n + 1)) ∈ r3 := by
---   -- decide on whether alt n is a or b
---   rcases alt_is_a_or_b n with h | h
---   · -- alt n = a ⇒ next is b
---     have : alt (n + 1) = Three.b := by simp [alt, toggle, h]
---     simpa [h, this] using r3_ab
---   · -- alt n = b ⇒ next is a
---     have : alt (n + 1) = Three.a := by simp [alt, toggle, h]
---     simpa [h, this] using r3_ba
-
--- -- r3 is not terminating: the function `alt` witnesses an infinite chain
--- lemma r3_not_terminating : ¬ asr_terminating r3 := by
---   intro hterm
---   -- build the infinite chain with `alt`
---   have hChain : ∀ n : ℕ, (alt n, alt (n + 1)) ∈ r3 := by
---     intro n; exact alt_step_in_r3 n
---   exact hterm ⟨alt, hChain⟩
-
--- end Counterexample
-
--- open Counterexample
-
--- -- Final statement: there exists a normalizing but non-terminating relation
--- -- hence, it's not true in general that normalizing implies terminating.
--- -- A concrete existential counterexample: normalizing but not terminating
--- -- A concrete counterexample on a 3-element type
--- example : asr_normalizing Counterexample.r3 := Counterexample.r3_normalizing
--- example : ¬ asr_terminating Counterexample.r3 := Counterexample.r3_not_terminating
-
-
- -- intro x hx
-  -- by_contra hno
-  -- -- hno : ¬ ∃ y, (x, y) ∈ r
-  -- have hx_irred : asr_irreducible r x := by
-  --   -- asr_irreducible r x := ¬ asr_reducible r x, and asr_reducible r x := ∃ c, (x, c) ∈ r
-  --   unfold asr_irreducible asr_reducible
-  --   simpa using hno
-  -- have hx_norm : asr_is_normalform_of r x b := by
-  --   unfold asr_is_normalform_of
-  --   exact ⟨hx, hx_irred⟩
-  -- exact h ⟨x, hx_norm⟩
