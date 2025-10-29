@@ -118,71 +118,71 @@ def comp (r r' : Set (A × A)) : Set (A × A) :=
   { p | ∃ b, (p.1, b) ∈ r ∧ (b, p.2) ∈ r' }
 
 -- n-fold composition power of a relation r; 0 gives the identity relation
-def asr_power : ℕ → Set (A × A) → Set (A × A)
+def ars_power : ℕ → Set (A × A) → Set (A × A)
 | 0, _ => { p | p.1 = p.2 }
-| n+1, r => comp (asr_power n r) r
+| n+1, r => comp (ars_power n r) r
 
-def asr_identity : Set (A × A) → Set (A × A) := asr_power 0
+def ars_identity : Set (A × A) → Set (A × A) := ars_power 0
 
 def asr_transitive_closure : Set (A × A) :=
-  ⋃ n : ℕ, asr_power (n + 1) r
+  ⋃ n : ℕ, ars_power (n + 1) r
 
-def asr_reflexive_transitive_closure : Set (A × A) :=
-  ⋃ n : ℕ, asr_power n r
+def ars_reflexive_transitive_closure : Set (A × A) :=
+  ⋃ n : ℕ, ars_power n r
 
-def asr_reflexive_closure : Set (A × A) :=
-  asr_identity r ∪ asr_power 1 r
+def ars_reflexive_closure : Set (A × A) :=
+  ars_identity r ∪ ars_power 1 r
 
-def asr_inverse : Set (A × A) :=
+def ars_inverse : Set (A × A) :=
   { p | r (p.2, p.1) }
 
-def asr_symmetric_closure : Set (A × A) :=
-  r ∪ asr_inverse r
+def ars_symmetric_closure : Set (A × A) :=
+  r ∪ ars_inverse r
 
-def asr_transitive_symmetric_closure : Set (A × A) :=
-  asr_transitive_closure (asr_symmetric_closure r)
+def ars_transitive_symmetric_closure : Set (A × A) :=
+  asr_transitive_closure (ars_symmetric_closure r)
 
-def asr_equivalence_closure : Set (A × A) :=
-  asr_reflexive_transitive_closure (asr_symmetric_closure r)
+def ars_equivalence_closure : Set (A × A) :=
+  ars_reflexive_transitive_closure (ars_symmetric_closure r)
 
 -- An element b is reducible if it relates to some c via r
-def asr_reducible (b : A) := ∃ c : A, (b, c) ∈ r
+def ars_reducible (b : A) := ∃ c : A, (b, c) ∈ r
 
-def asr_irreducible (b: A) := ¬ asr_reducible r b
+def ars_irreducible (b: A) := ¬ ars_reducible r b
 
-def asr_is_normalform_of (c: A) (b: A) :=
-  (b, c) ∈ asr_reflexive_transitive_closure r ∧ asr_irreducible r c
+def ars_is_normalform_of (c: A) (b: A) :=
+  (b, c) ∈ ars_reflexive_transitive_closure r ∧ ars_irreducible r c
 
 -- A relation is terminating if there is no infinite chain b₀ → b₁ → b₂ → ···
-def asr_terminating :=
+def ars_terminating :=
   ¬ ∃ f : ℕ → A, ∀ n : ℕ, (f n, f (n + 1)) ∈ r
 
 -- Normalizing means every element has a normal form reachable via r
-def asr_normalizing : Prop := ∀ b : A, ∃ c : A, asr_is_normalform_of r c b
+def ars_normalizing : Prop := ∀ b : A, ∃ c : A, ars_is_normalform_of r c b
 
 lemma aux_exists_next_of_not_normalizing
   (r : Set (A × A)) (b : A)
-  (h : ¬ ∃ c : A, asr_is_normalform_of r c b) :
+  (h : ¬ ∃ c : A, ars_is_normalform_of r c b) :
   ∀ x : A, (b, x)
-    ∈ asr_reflexive_transitive_closure r → ∃ y : A, (x, y) ∈ r := by
+    ∈ ars_reflexive_transitive_closure r → ∃ y : A, (x, y) ∈ r := by
   intro x hrtc
   rw [not_exists] at h
   specialize h x
-  rw [asr_is_normalform_of, not_and_or] at h
+  rw [ars_is_normalform_of, not_and_or] at h
   rcases h with h | h
   · contradiction
-  · rw [asr_irreducible, Classical.not_not, asr_reducible] at h
+  · rw [ars_irreducible, Classical.not_not, ars_reducible] at h
     exact h
 
 lemma aux_exists_infinity_chain_of_not_normalizing
   (r : Set (A × A)) :
-  ¬ asr_normalizing r → ∃ f : ℕ → A, ∀ n : ℕ, (f n, f (n + 1)) ∈ r := by
+  ¬ ars_normalizing r → ∃ f : ℕ → A, ∀ n : ℕ, (f n, f (n + 1)) ∈ r := by
   intro not_nor
-  rw [asr_normalizing, not_forall] at not_nor
+  rw [ars_normalizing, not_forall] at not_nor
   obtain ⟨ b, hb ⟩ := not_nor
 
   -- subtypes are a bit spooky
-  let Reachable := {x : A // (b, x) ∈ asr_reflexive_transitive_closure r }
+  let Reachable := {x : A // (b, x) ∈ ars_reflexive_transitive_closure r }
 
   have reachable_next
     (x : Reachable) :
@@ -190,24 +190,24 @@ lemma aux_exists_infinity_chain_of_not_normalizing
     have xp := x.property
     have hnext := aux_exists_next_of_not_normalizing r b hb x xp
     obtain ⟨ y', h ⟩ := hnext
-    have prop :  (b, y') ∈ asr_reflexive_transitive_closure r := by
-      rw [asr_reflexive_transitive_closure]
-      unfold asr_reflexive_transitive_closure at xp
+    have prop :  (b, y') ∈ ars_reflexive_transitive_closure r := by
+      rw [ars_reflexive_transitive_closure]
+      unfold ars_reflexive_transitive_closure at xp
       -- these two lines are tricky
       rcases Set.mem_iUnion.mp xp with ⟨ n, hxN ⟩
       refine Set.mem_iUnion.mpr ?_
       use n + 1
-      rw [asr_power, comp]
+      rw [ars_power, comp]
       simp
       use x
     use ⟨ y', prop ⟩
 
   let f : ℕ → Reachable := Nat.rec
     ⟨ b, (by
-      rw [asr_reflexive_transitive_closure]
+      rw [ars_reflexive_transitive_closure]
       simp
       use 0
-      rw [asr_power]
+      rw [ars_power]
       simp
     )⟩
     (fun _ x => Classical.choose (reachable_next x))
@@ -219,8 +219,8 @@ lemma aux_exists_infinity_chain_of_not_normalizing
   -- crazy, that this works in such a compact form
   exact Classical.choose_spec (reachable_next (f n))
 
-lemma asr_terminating_normalizing (r: Set (A × A)) :
-  asr_terminating r → asr_normalizing r := by
+lemma ars_terminating_normalizing (r: Set (A × A)) :
+  ars_terminating r → ars_normalizing r := by
   intro ht
   by_contra not_nor
   have chain := aux_exists_infinity_chain_of_not_normalizing r not_nor
@@ -233,39 +233,55 @@ end ARS
 -- More definitions, reusing from matlib if possible
 -- ===================================================
 namespace Orderings
+variable {A : Type*}
+
+-- convert a ordering from the lecture to lean
+def from_GT (R : Set (A × A)) :=
+  fun a b => (b, a) ∈ R
+
+
 -- Well-Foundedness and Termination
 -- Lemma 1.3.1
-lemma wellfounded_strict_partial_order_subset_asr_terminating {A: Type*}
+-- the proof does not need that R is a ordering
+lemma wellfounded_order_subset_ars_terminating
   (R: Set (A × A)) (S: Set (A × A)) (hs: S ⊆ R) :
   -- Use the inverse relation for WellFounded to rule out forward-infinite chains
   -- we use the reversed notation, as we are interested in forward chains
-  WellFounded (fun a b : A => (b, a) ∈ R) → ARS.asr_terminating S
+  WellFounded (from_GT R) → ARS.ars_terminating S
   := by
   intro wf
-  unfold ARS.asr_terminating
+  unfold ARS.ars_terminating
   intro h
   obtain ⟨ f, hf ⟩ := h
   have ⟨ a, ha, hmin ⟩  := wf.has_min (Set.range f) ⟨ f 0, by exact ⟨ 0, rfl ⟩ ⟩
-  rcases ha with ⟨ n₀, rfl ⟩
-  -- TODO, ok, I'm kinda lost here, wtf
+  unfold from_GT at hmin
+  have hn : ∃ n : ℕ, f n = a := by
+    exact ha -- damn
+  obtain ⟨ n, np ⟩ := hn
+  specialize hf n
+  rw [np] at hf
+  rw [Set.range] at hmin
+  simp at hmin
+  specialize hmin (n + 1)
+  apply hmin
+  exact hs hf
 
-  sorry
-  -- intro wf
-  -- -- Show there is no infinite S-chain
-  -- unfold ARS.asr_terminating
-  -- intro h
-  -- rcases h with ⟨f, hf⟩
-  -- -- Consider the range of the sequence f; pick a minimal element w.r.t. invRelOf R
-  -- classical
-  -- have hne : (Set.range f).Nonempty := ⟨f 0, by exact ⟨0, rfl⟩⟩
-  -- obtain ⟨a, ha, hmin⟩ := wf.has_min (Set.range f) hne
-  -- rcases ha with ⟨n₀, rfl⟩
-  -- -- From the chain, f (n₀ + 1) is below f n₀ in invRelOf R and is in the range
-  -- have hstepS : (f n₀, f (n₀ + 1)) ∈ S := hf n₀
-  -- have hstepR : (f n₀, f (n₀ + 1)) ∈ R := hs hstepS
-  -- have hinv : (fun a b : A => (b, a) ∈ R) (f (n₀ + 1)) (f n₀) := hstepR
-  -- have hmem : f (n₀ + 1) ∈ Set.range f := ⟨n₀ + 1, rfl⟩
-  -- exact (hmin _ hmem hinv)
+lemma terminating_then_wellfounded_partial_ordering
+  (R: Set (A × A)) :
+  ARS.ars_terminating R →
+    IsStrictOrder A (from_GT (ARS.asr_transitive_closure R)) ∧
+    WellFounded (from_GT (ARS.asr_transitive_closure R))
+   := by
+  intro ht
+  let rel := (from_GT (ARS.asr_transitive_closure R))
+  have a : IsTrans A rel := by
+    sorry
+  have b: IsIrrefl A rel := by
+    sorry
+  constructor
+  · constructor
+  · -- UFF, this part could be hard again and I can barely reuse existing lemma, or can I?
+    sorry
 
 end Orderings
 
@@ -291,33 +307,33 @@ lemma R_e2e1 : (e2, e1) ∈ R := by simp [R]
 lemma R_e1e3 : (e1, e3) ∈ R := by simp [R]
 lemma R_e2e3 : (e2, e3) ∈ R := by simp [R]
 
-lemma e3_irreducible : asr_irreducible R e3 := by
-  unfold asr_irreducible asr_reducible
+lemma e3_irreducible : ars_irreducible R e3 := by
+  unfold ars_irreducible ars_reducible
   simp [R]
 
-lemma e3_normal_of_e3 : asr_is_normalform_of R e3 e3 := by
-  unfold asr_is_normalform_of
+lemma e3_normal_of_e3 : ars_is_normalform_of R e3 e3 := by
+  unfold ars_is_normalform_of
   constructor
-  · unfold asr_reflexive_transitive_closure
-    simp; use 0; simp [asr_power]
+  · unfold ars_reflexive_transitive_closure
+    simp; use 0; simp [ars_power]
   · exact e3_irreducible
 
-lemma e3_normal_of_e1 : asr_is_normalform_of R e3 e1 := by
-  unfold asr_is_normalform_of
+lemma e3_normal_of_e1 : ars_is_normalform_of R e3 e1 := by
+  unfold ars_is_normalform_of
   constructor
-  · unfold asr_reflexive_transitive_closure
-    simp; use 1; unfold asr_power asr_power comp; simp [R]
+  · unfold ars_reflexive_transitive_closure
+    simp; use 1; unfold ars_power ars_power comp; simp [R]
   · exact e3_irreducible
 
-lemma e3_normal_of_e2 : asr_is_normalform_of R e3 e2 := by
-  unfold asr_is_normalform_of
+lemma e3_normal_of_e2 : ars_is_normalform_of R e3 e2 := by
+  unfold ars_is_normalform_of
   constructor
-  · unfold asr_reflexive_transitive_closure
-    simp; use 1; unfold asr_power asr_power comp; simp [R]
+  · unfold ars_reflexive_transitive_closure
+    simp; use 1; unfold ars_power ars_power comp; simp [R]
   · exact e3_irreducible
 
-lemma R_normalizing: asr_normalizing R := by
-  unfold asr_normalizing
+lemma R_normalizing: ars_normalizing R := by
+  unfold ars_normalizing
   intro x
   rcases x with e1 | e2 | e3
   · use e3
@@ -344,14 +360,14 @@ lemma alt_never_e3 : ∀ n : ℕ, alt n ≠ e3 := by
     simp [alt]
     rcases alt n with e1 | e2 | e3 <;> simp [toggle]
 
-lemma Counterexample : asr_normalizing R ∧  ¬asr_terminating R := by
+lemma Counterexample : ars_normalizing R ∧  ¬ars_terminating R := by
   rw [and_iff_not_or_not]
   intro h
   rcases h with h | h
   · apply h
     exact R_normalizing
-  · have h' : ¬ asr_terminating R := by
-      unfold asr_terminating
+  · have h' : ¬ ars_terminating R := by
+      unfold ars_terminating
       rw [not_not]
       use alt
       intro n
@@ -378,18 +394,18 @@ open Y
 def S : Set (Y × Y) :=
   {p | p = (y1, y2)}
 
-def S' := asr_symmetric_closure S
+def S' := ars_symmetric_closure S
 
-def S'' := asr_equivalence_closure S
+def S'' := ars_equivalence_closure S
 
 example : S ≠ S' ∧ S ≠ S'' ∧ S' ≠ S'' := by
   -- S ≠ S'
   constructor
   · intro h
     have hyS' : (y2, y1) ∈ S' := by
-      simp [S', asr_symmetric_closure]
+      simp [S', ars_symmetric_closure]
       right
-      unfold asr_inverse S
+      unfold ars_inverse S
       exact rfl -- kinda weird
     have hyNotS : (y2, y1) ∉ S := by
       simp [S]
@@ -399,8 +415,8 @@ example : S ≠ S' ∧ S ≠ S'' ∧ S' ≠ S'' := by
   constructor
   · intro h
     have hyyS'' : (y1, y1) ∈ S'' := by
-      unfold S'' asr_equivalence_closure asr_reflexive_transitive_closure
-      simp; use 0; simp [asr_power]
+      unfold S'' ars_equivalence_closure ars_reflexive_transitive_closure
+      simp; use 0; simp [ars_power]
     have hyyNotS : (y1, y1) ∉ S := by
       simp [S]
     rw [h] at hyyNotS
@@ -408,14 +424,14 @@ example : S ≠ S' ∧ S ≠ S'' ∧ S' ≠ S'' := by
   -- S' ≠ S''
   · intro h
     have hyyS'' : (y1, y1) ∈ S'' := by
-      unfold S'' asr_equivalence_closure asr_reflexive_transitive_closure
-      simp; use 0; simp [asr_power]
+      unfold S'' ars_equivalence_closure ars_reflexive_transitive_closure
+      simp; use 0; simp [ars_power]
     have hyyNotS' : (y1, y1) ∉ S' := by
-      unfold S' asr_symmetric_closure
+      unfold S' ars_symmetric_closure
       simp
       constructor
       · simp [S]
-      · unfold asr_inverse; simp;
+      · unfold ars_inverse; simp;
         intro h
         unfold S at h
         simp at h
