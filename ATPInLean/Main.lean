@@ -319,7 +319,10 @@ lemma terminating_then_wellfounded_partial_ordering
     unfold rel from_GT
     exact fun a_1 a_2 ↦ ARS.ars_transitive_closure_trans R c b a a_2 a_1
   have b: IsIrrefl A rel := by
-    sorry
+    constructor
+    intro a
+    intro ha
+    sorry -- TODO
   constructor
   · constructor
   · -- UFF, this part could be hard again and I can barely reuse existing lemma, or can I?
