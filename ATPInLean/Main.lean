@@ -398,31 +398,135 @@ lemma terminating_then_wellfounded_partial_ordering
     grind
   constructor
   · constructor
-  · rw [wellFounded_iff_isEmpty_descending_chain]
-    refine Subtype.isEmpty_of_false ?_
-    intro f
-    rw [not_forall]
-    unfold from_GT
+  · have h: WellFounded (from_GT R) :=
+      sorry
 
-    unfold ars_terminating at ht
-    rw [not_exists] at ht
-    specialize ht f
+    have h': WellFounded (Relation.TransGen (from_GT R)) := by
+      exact WellFounded.transGen h
 
-    rw [not_forall] at ht
-    obtain ⟨ x, hx ⟩ := ht
-    use x
-    have sub : R ⊆ ars_transitive_closure R  := by
-      intro h hh
-      unfold ars_transitive_closure
-      rw [Set.mem_iUnion]
-      use 0
-      simp
-      unfold ars_power comp ars_power
-      simp
-      exact hh
+    have h'' : WellFounded (from_GT (ars_transitive_closure R)) := by
+      constructor
+      obtain ⟨ ml ⟩ := h'
+      intro a
+      specialize ml a
+      unfold from_GT at ml ⊢
 
-    -- AAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHH!!!
-    -- I still got this wrong
+      -- ml : Acc (Relation.TransGen (fun a b ↦ (b, a) ∈ R)) a
+      -- Goal: Acc (fun a b ↦ (b, a) ∈ ars_transitive_closure R) a
+      -- Helper: transitive closure membership implies a TransGen step sequence
+      have tc_to_transGen : ∀ {x y : A}, (x, y)
+          ∈ ars_transitive_closure R →
+          Relation.TransGen (fun a b ↦ (b, a) ∈ R) y x := by
+        intro x y hxy
+        rcases Set.mem_iUnion.mp hxy with ⟨n, hn⟩
+        -- Prove the statement for a fixed length n+1 by induction on n
+        have tc_power_to_transGen : ∀ {x y : A} {n : ℕ},
+            (x, y) ∈ ars_power (n + 1) R →
+            Relation.TransGen (fun a b ↦ (b, a) ∈ R) y x := by
+          intro x y n hn'
+          induction n generalizing y with
+          | zero =>
+              -- ars_power (0+1) R = comp (ars_power 0 R) R
+              unfold ars_power at hn'
+              unfold comp at hn'
+              rcases hn' with ⟨m, hm0, hR⟩
+              -- From hm0 : (x, m) ∈ ars_power 0 R, deduce x = m
+              have hm0' : x = m := by
+                simpa [ars_power] using hm0
+              -- Thus the step (m, y) ∈ R is actually (x, y) ∈ R
+              have hxy' : (x, y) ∈ R := by
+                simpa [hm0'] using hR
+              -- Single step in TransGen for base relation (reversed direction)
+              exact Relation.TransGen.single hxy'
+          | succ n ih =>
+              -- ars_power (n+2) R = comp (ars_power (n+1) R) R
+              unfold ars_power at hn'
+              unfold comp at hn'
+              rcases hn' with ⟨mid, hPow, hStep⟩
+              -- IH: TransGen from mid to x for a shorter path
+              have t_mid_x : Relation.TransGen (fun a b ↦ (b, a) ∈ R) mid x := ih hPow
+              -- One step from y to mid using hStep
+              have step_y_mid : (fun a b ↦ (b, a) ∈ R) y mid := by
+                -- by definition, this is (mid, y) ∈ R
+                exact hStep
+              -- Prepend the step
+              exact Relation.TransGen.head step_y_mid t_mid_x
+        -- Apply the helper to our concrete `n`
+        exact tc_power_to_transGen hn
+
+      sorry
+      -- -- Build Acc for the closure using Acc on TransGen
+      -- refine Acc.recOn (motive := fun x _ => Acc (fun a b ↦ (b, a) ∈ ars_transitive_closure R) x) ml ?_
+      -- intro x hx ih
+      -- refine Acc.intro ?_
+      --   intro y hy
+      --   -- hy: (x, y) ∈ ars_transitive_closure R with flipped args in goal
+      --   have hyT : Relation.TransGen (fun a b ↦ (b, a) ∈ R) y x := tc_to_transGen hy
+      -- -- Use the induction hypothesis along the TransGen edge
+      -- exact ih y hyT
+
+      -- sorry
+
+    exact h''
+
+
+    -- unfold from_GT
+    -- constructor
+    -- have h₃ := WellFounded.apply h'
+    -- intro a
+    -- specialize h₃ a
+
+    -- have eq : Relation.TransGen (from_GT R) = (fun a b ↦ (b, a) ∈ ars_transitive_closure R) := by
+    --   ext a b
+    --   unfold from_GT
+
+
+
+
+
+    -- rw [wellFounded_iff_isEmpty_descending_chain]
+    -- refine Subtype.isEmpty_of_false ?_
+    -- intro f
+    -- rw [not_forall]
+    -- unfold from_GT
+
+    -- unfold ars_terminating at ht
+    -- rw [not_exists] at ht
+    -- specialize ht f
+
+    -- rw [not_forall] at ht
+    -- obtain ⟨ x, hx ⟩ := ht
+    -- use x
+
+    -- -- TODO
+    -- by_contra h
+    -- unfold ars_transitive_closure at h
+    -- rw [Set.mem_iUnion] at h
+    -- obtain ⟨ i, hi ⟩ := h
+    -- by_cases h : i = 0
+    -- · rw [h] at hi
+    --   simp at hi
+    --   unfold ars_power at hi
+    --   unfold comp ars_power at hi
+    --   simp at hi
+    --   contradiction
+    -- ·
+    --   sorry
+
+
+
+    -- have sub : R ⊆ ars_transitive_closure R  := by
+    --   intro h hh
+    --   unfold ars_transitive_closure
+    --   rw [Set.mem_iUnion]
+    --   use 0
+    --   simp
+    --   unfold ars_power comp ars_power
+    --   simp
+    --   exact hh
+
+    -- -- AAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHH!!!
+    -- -- I still got this wrong
 
 end Orderings
 
