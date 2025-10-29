@@ -322,7 +322,70 @@ open ARS
 def from_GT (R : Set (A × A)) :=
   fun a b => (b, a) ∈ R
 
--- general question: should I use classes?
+def transgen_mem_iff_ars_transitive_closure
+  (R: Set (A × A)) :
+  (from_GT (ars_transitive_closure R)) = Relation.TransGen (from_GT R) := by
+  funext a b; apply propext
+  constructor
+  ·
+
+    -- =========== TODO =============
+    -- Read this prove and rebuild
+    -- Why is this working?
+    -- how to improve?
+    -- why is the induction setup like it is?
+
+    -- (b,a) ∈ TC(R) ⇒ TransGen (from_GT R) a b
+    intro h
+    simp [from_GT] at h
+    rcases Set.mem_iUnion.mp h with ⟨n, hn⟩
+    -- prove for fixed length by induction on n
+    have aux : ∀ {x y : A} {n : ℕ}, (x, y) ∈ ars_power (n + 1) R →
+        Relation.TransGen (from_GT R) y x := by
+      intro x y n hpow
+      induction n generalizing x y with
+      | zero =>
+          -- one step
+          unfold ars_power at hpow
+          unfold comp at hpow
+          rcases hpow with ⟨m, hm0, hR⟩
+          have hm0' : x = m := by simpa [ars_power] using hm0
+          have step : (from_GT R) y x := by simpa [from_GT, hm0'] using hR
+          exact Relation.TransGen.single step
+      | succ n ih =>
+          -- compose shorter path with one step
+          unfold ars_power at hpow
+          unfold comp at hpow
+          rcases hpow with ⟨mid, hPow, hStep⟩
+          have t_mid_x : Relation.TransGen (from_GT R) mid x := ih hPow
+          have step_y_mid : (from_GT R) y mid := by simpa [from_GT] using hStep
+          -- prepend the single step to the transitive chain
+          exact Relation.TransGen.head step_y_mid t_mid_x
+    exact aux hn
+    -- ========== END TODO
+
+
+  · -- TransGen (from_GT R) a b ⇒ (b,a) ∈ TC(R)
+    intro h
+    simp [from_GT]
+    exact @Relation.TransGen.trans_induction_on
+      (motive := @fun a b _ => (b, a) ∈ ars_transitive_closure R)
+      (r := (from_GT R))
+      (α := A)
+      (h := h)
+      (a := a) (b := b)
+      (single := @fun a b h => by
+        simp [ars_transitive_closure]
+        refine ⟨ 0, ?_ ⟩
+        simp [ars_power, comp]
+        exact h
+      )
+      (trans := @fun x y z h₁ h₂ m₁ m₂ => by
+        simp at m₁ m₂ ⊢
+        exact ars_transitive_closure_trans R z y x m₂ m₁
+      )
+
+
 
 -- Well-Foundedness and Termination
 -- Lemma 1.3.1
@@ -397,126 +460,51 @@ lemma terminating_then_wellfounded_partial_ordering
     grind
   constructor
   · constructor
-  ·
-
-    -- AI generated part, review and rewrite for better understanding
-    -- AT LEAST IT WORKS!!!!!!!!
-    -- REALLY NICE!!!!
+  · -- use terminating to follow well founded ness
     have h: WellFounded (from_GT R) := by
-      classical
-      -- Prove by contradiction: if not well-founded, build an infinite forward chain in R
-      by_contra hWF
-      -- From ¬WellFounded r we get ∃ a, ¬Acc r a
-      have not_all_acc : ¬ (∀ a, Acc (from_GT R) a) := by
-        intro allAcc
-        exact hWF ⟨allAcc⟩
-      have ⟨a0, ha0⟩ : ∃ a, ¬ Acc (from_GT R) a := by
-        exact not_forall.mp not_all_acc
-      -- From a point not accessible, there is a predecessor which is also not accessible
-      have exists_pred_not_acc : ∀ x, ¬ Acc (from_GT R) x →
-          ∃ y, (from_GT R) y x ∧ ¬ Acc (from_GT R) y := by
-        intro x hx
-        classical
-        by_contra hno
-        -- hno : ¬ ∃ y, (from_GT R) y x ∧ ¬ Acc (from_GT R) y
-        have hforall : ∀ y, ¬ ((from_GT R) y x ∧ ¬ Acc (from_GT R) y) := by
-          simpa [not_exists] using hno
-        have hxacc : Acc (from_GT R) x := by
-          refine Acc.intro (x := x) ?pred
-          intro y hy
-          have : ¬ ¬ Acc (from_GT R) y := by
-            have hny : ¬ ((from_GT R) y x ∧ ¬ Acc (from_GT R) y) := hforall y
-            by_contra hnotacc
-            exact hny ⟨hy, hnotacc⟩
-          exact not_not.mp this
-        exact hx hxacc
-      -- Build a sequence of non-accessible elements following predecessors
-      let g : ℕ → {x // ¬ Acc (from_GT R) x} :=
-        Nat.rec ⟨a0, ha0⟩ (fun _ p =>
-          let ex := exists_pred_not_acc p.1 p.2
-          ⟨Classical.choose ex, (Classical.choose_spec ex).2⟩)
+      apply WellFounded.intro
+      by_contra hn
+      rw [not_forall] at hn
+      obtain ⟨ x, hx ⟩ := hn
+
+      let Inaccessible := {i // ¬ Acc (from_GT R) i}
+
+      have has_step : ∀ p : Inaccessible,
+        ∃ y, (from_GT R) y p.1 ∧ ¬ Acc (from_GT R) y := by
+        intro p
+        obtain ⟨ i, hi ⟩ := p
+        by_contra n
+        rw [not_exists] at n
+        apply hi
+        refine Acc.intro (x := i) ?_
+        intro y hy
+        specialize n y
+        by_contra t
+        apply n
+        exact ⟨ hy, t ⟩
+
+      let g : ℕ → Inaccessible :=
+        Nat.rec
+          ⟨ x, hx ⟩
+          (fun _ p => by
+            let pr := has_step p
+            let y := Classical.choose pr
+            let hy := Classical.choose_spec pr
+            exact ⟨ y, hy.2 ⟩
+          )
       let f : ℕ → A := fun n => (g n).1
-      have step_fromGT : ∀ n, (from_GT R) (f (n+1)) (f n) := by
-        intro n
-        -- by construction of g, the (n+1)-th element is a predecessor of the n-th
-        simpa [f, g] using
-          (Classical.choose_spec (exists_pred_not_acc (g n).1 (g n).2)).1
-      -- This yields a forward infinite chain in R, contradicting termination
-      have step_R : ∀ n, (f n, f (n+1)) ∈ R := by
-        intro n; simpa [from_GT] using step_fromGT n
       unfold ars_terminating at ht
       apply ht
-      refine ⟨f, ?_⟩
-      intro n; exact step_R n
+      use f
+      intro n
+      specialize has_step (g n)
+      -- I'm still a little bit confused how simp can look through recursive definitions
+      exact (Classical.choose_spec has_step).left
 
-    have h': WellFounded (Relation.TransGen (from_GT R)) := by
-      exact WellFounded.transGen h
+    -- reusing mathlib here, otherwise this would be quite a pain
+    have h' := WellFounded.transGen h
 
-    have h'' : WellFounded (from_GT (ars_transitive_closure R)) := by
-      constructor
-      obtain ⟨ ml ⟩ := h'
-      intro a
-      specialize ml a
-      unfold from_GT at ml ⊢
-
-      -- ml : Acc (Relation.TransGen (fun a b ↦ (b, a) ∈ R)) a
-      -- Goal: Acc (fun a b ↦ (b, a) ∈ ars_transitive_closure R) a
-      -- Helper: transitive closure membership implies a TransGen step sequence
-      have tc_to_transGen : ∀ {x y : A}, (x, y)
-          ∈ ars_transitive_closure R →
-          Relation.TransGen (fun a b ↦ (b, a) ∈ R) y x := by
-        intro x y hxy
-        rcases Set.mem_iUnion.mp hxy with ⟨n, hn⟩
-        -- Prove the statement for a fixed length n+1 by induction on n
-        have tc_power_to_transGen : ∀ {x y : A} {n : ℕ},
-            (x, y) ∈ ars_power (n + 1) R →
-            Relation.TransGen (fun a b ↦ (b, a) ∈ R) y x := by
-          intro x y n hn'
-          induction n generalizing y with
-          | zero =>
-              -- ars_power (0+1) R = comp (ars_power 0 R) R
-              unfold ars_power at hn'
-              unfold comp at hn'
-              rcases hn' with ⟨m, hm0, hR⟩
-              -- From hm0 : (x, m) ∈ ars_power 0 R, deduce x = m
-              have hm0' : x = m := by
-                simpa [ars_power] using hm0
-              -- Thus the step (m, y) ∈ R is actually (x, y) ∈ R
-              have hxy' : (x, y) ∈ R := by
-                simpa [hm0'] using hR
-              -- Single step in TransGen for base relation (reversed direction)
-              exact Relation.TransGen.single hxy'
-          | succ n ih =>
-              -- ars_power (n+2) R = comp (ars_power (n+1) R) R
-              unfold ars_power at hn'
-              unfold comp at hn'
-              rcases hn' with ⟨mid, hPow, hStep⟩
-              -- IH: TransGen from mid to x for a shorter path
-              have t_mid_x : Relation.TransGen (fun a b ↦ (b, a) ∈ R) mid x := ih hPow
-              -- One step from y to mid using hStep
-              have step_y_mid : (fun a b ↦ (b, a) ∈ R) y mid := by
-                -- by definition, this is (mid, y) ∈ R
-                exact hStep
-              -- Prepend the step
-              exact Relation.TransGen.head step_y_mid t_mid_x
-        -- Apply the helper to our concrete `n`
-        exact tc_power_to_transGen hn
-
-    -- Build Acc for the closure using Acc on TransGen
-      refine Acc.ndrecOn ml (fun x hx ih => by
-        -- We must show Acc (closure) x, given IH for all predecessors along TransGen of R
-        refine Acc.intro (x := x) ?_
-        intro y hy
-        -- hy: (y, x) ∈ ars_transitive_closure R (note the closure is on pairs (a,b) with (b,a) ∈ ...)
-        have hyT : Relation.TransGen (fun a b ↦ (b, a) ∈ R) y x := tc_to_transGen hy
-        -- Use the induction hypothesis along the TransGen edge
-        exact ih y hyT)
-
-        -- #check Acc.ndrecOn
-
-        -- Acc.ndrecOn.{u1, u2} {α : Sort u2} {r : α → α → Prop} {C : α → Sort u1} {a : α} (n : Acc r a)
-    -- (m : (x : α) → (∀ (y : α), r y x → Acc r y) → ((y : α) → r y x → C y) → C x) : C a
-    exact h''
+    rwa [transgen_mem_iff_ars_transitive_closure]
 
 end Orderings
 
