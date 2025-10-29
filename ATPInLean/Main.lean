@@ -233,11 +233,40 @@ end ARS
 -- More definitions, reusing from matlib if possible
 -- ===================================================
 namespace Orderings
--- #check refl
--- #check irrefl
--- #check antisymm
--- #check trans
--- #check total_of
+-- Well-Foundedness and Termination
+-- Lemma 1.3.1
+lemma wellfounded_strict_partial_order_subset_asr_terminating {A: Type*}
+  (R: Set (A × A)) (S: Set (A × A)) (hs: S ⊆ R) :
+  -- Use the inverse relation for WellFounded to rule out forward-infinite chains
+  -- we use the reversed notation, as we are interested in forward chains
+  WellFounded (fun a b : A => (b, a) ∈ R) → ARS.asr_terminating S
+  := by
+  intro wf
+  unfold ARS.asr_terminating
+  intro h
+  obtain ⟨ f, hf ⟩ := h
+  have ⟨ a, ha, hmin ⟩  := wf.has_min (Set.range f) ⟨ f 0, by exact ⟨ 0, rfl ⟩ ⟩
+  rcases ha with ⟨ n₀, rfl ⟩
+  -- TODO, ok, I'm kinda lost here, wtf
+
+  sorry
+  -- intro wf
+  -- -- Show there is no infinite S-chain
+  -- unfold ARS.asr_terminating
+  -- intro h
+  -- rcases h with ⟨f, hf⟩
+  -- -- Consider the range of the sequence f; pick a minimal element w.r.t. invRelOf R
+  -- classical
+  -- have hne : (Set.range f).Nonempty := ⟨f 0, by exact ⟨0, rfl⟩⟩
+  -- obtain ⟨a, ha, hmin⟩ := wf.has_min (Set.range f) hne
+  -- rcases ha with ⟨n₀, rfl⟩
+  -- -- From the chain, f (n₀ + 1) is below f n₀ in invRelOf R and is in the range
+  -- have hstepS : (f n₀, f (n₀ + 1)) ∈ S := hf n₀
+  -- have hstepR : (f n₀, f (n₀ + 1)) ∈ R := hs hstepS
+  -- have hinv : (fun a b : A => (b, a) ∈ R) (f (n₀ + 1)) (f n₀) := hstepR
+  -- have hmem : f (n₀ + 1) ∈ Set.range f := ⟨n₀ + 1, rfl⟩
+  -- exact (hmin _ hmem hinv)
+
 end Orderings
 
 
@@ -353,7 +382,6 @@ def S' := asr_symmetric_closure S
 
 def S'' := asr_equivalence_closure S
 
--- TODO: this proof is completely over the top
 example : S ≠ S' ∧ S ≠ S'' ∧ S' ≠ S'' := by
   -- S ≠ S'
   constructor
