@@ -127,7 +127,7 @@ def ars_identity : Set (A × A) → Set (A × A) := ars_power 0
 def ars_transitive_closure : Set (A × A) :=
   ⋃ n : ℕ, ars_power (n + 1) r
 
-theorem ars_transitive_closure_trans (a b c: A) :
+lemma ars_transitive_closure_trans (a b c: A) :
   (a, b) ∈ (ars_transitive_closure r) → (b, c) ∈ (ars_transitive_closure r) →
   (a, c) ∈ (ars_transitive_closure r) := by
   unfold ars_transitive_closure
@@ -164,6 +164,50 @@ theorem ars_transitive_closure_trans (a b c: A) :
   refine Set.mem_iUnion.mpr ?_
   refine ⟨n + m + 1, ?_⟩
   exact compose_len m c h_bc
+
+-- "real" number of hops is len + 1, so no empty paths
+lemma ars_path_function_between_two_transitive_elements :
+  ∀ len : ℕ,
+    ∀ a b : A,
+      (a, b) ∈ ars_power len r →
+        ∃ g : ℕ → A,
+          g 0 = a ∧ g len = b ∧
+          (∀ i, i < len → (g i, g (i + 1)) ∈ r) := by
+  intro len
+  induction len with
+  | zero =>
+      simp
+      intro a b hab
+      unfold ars_power at hab
+      simp at hab
+      rw [hab]
+      simp
+      use fun _ => b
+  | succ len ih =>
+      intro a b hab
+      unfold ars_power comp at hab
+      simp at hab
+      obtain ⟨ b', ⟨ hb₁, hb₂ ⟩ ⟩ := hab
+      specialize ih a b' hb₁
+      obtain ⟨ g, ⟨ hg1, hg2, hg3 ⟩ ⟩ := ih
+      refine ⟨fun n => if n < len + 1 then g n else b, ?_ ⟩
+      -- grind can complete the rest from here
+      simp
+      constructor
+      · exact hg1
+      · intro i hi
+        by_cases hcase : i < len
+        · simp [hcase]
+          simp [hi]
+          specialize hg3 i
+          apply hg3
+          exact hcase
+        · have hi' : i = len := by
+            exact Nat.eq_of_lt_succ_of_not_lt hi hcase
+          simp [hi']
+          rw [hg2]
+          exact hb₂
+
 
 def ars_reflexive_transitive_closure : Set (A × A) :=
   ⋃ n : ℕ, ars_power n r
@@ -272,6 +316,7 @@ end ARS
 -- ===================================================
 namespace Orderings
 variable {A : Type*}
+open ARS
 
 -- convert a ordering from the lecture to lean
 def from_GT (R : Set (A × A)) :=
@@ -286,10 +331,10 @@ lemma wellfounded_order_subset_ars_terminating
   (R: Set (A × A)) (S: Set (A × A)) (hs: S ⊆ R) :
   -- Use the inverse relation for WellFounded to rule out forward-infinite chains
   -- we use the reversed notation, as we are interested in forward chains
-  WellFounded (from_GT R) → ARS.ars_terminating S
+  WellFounded (from_GT R) → ars_terminating S
   := by
   intro wf
-  unfold ARS.ars_terminating
+  unfold ars_terminating
   intro h
   obtain ⟨ f, hf ⟩ := h
   have ⟨ a, ha, hmin ⟩  := wf.has_min (Set.range f) ⟨ f 0, by exact ⟨ 0, rfl ⟩ ⟩
@@ -307,22 +352,48 @@ lemma wellfounded_order_subset_ars_terminating
 
 lemma terminating_then_wellfounded_partial_ordering
   (R: Set (A × A)) :
-  ARS.ars_terminating R →
-    IsStrictOrder A (from_GT (ARS.ars_transitive_closure R)) ∧
-    WellFounded (from_GT (ARS.ars_transitive_closure R))
+  ars_terminating R →
+    IsStrictOrder A (from_GT (ars_transitive_closure R)) ∧
+    WellFounded (from_GT (ars_transitive_closure R))
    := by
   intro ht
-  let rel := (from_GT (ARS.ars_transitive_closure R))
+  let rel := (from_GT (ars_transitive_closure R))
   have a : IsTrans A rel := by
     constructor
     intro a b c
     unfold rel from_GT
-    exact fun a_1 a_2 ↦ ARS.ars_transitive_closure_trans R c b a a_2 a_1
+    exact fun a_1 a_2 ↦ ars_transitive_closure_trans R c b a a_2 a_1
   have b: IsIrrefl A rel := by
     constructor
     intro a
-    intro ha
-    sorry -- TODO
+    intro ra
+    unfold rel from_GT ars_transitive_closure at ra
+    rcases Set.mem_iUnion.mp ra with ⟨ n, hn ⟩
+    obtain ⟨ g, ⟨ g0, g1, g2 ⟩ ⟩ := ars_path_function_between_two_transitive_elements R (n + 1) a a hn
+
+      -- idx always stays within [0, n + 1)
+    let idx : ℕ → ℕ := Nat.rec 0 (fun _ i => if i = n then 0 else i + 1)
+    have idx_lt : ∀ k, idx k < n + 1 := by
+      intro k; induction k with
+      | zero => simp [idx]
+      | succ k ih =>
+        -- I would like to use this, but it's not working
+        -- by_cases h : (idx k) < n
+
+        -- resorting to this, glad it works
+        -- but note: I'm not able to reproduce this proof here
+        -- because I don't know how to properly handle Nat.rec
+
+        grind
+
+    let f : ℕ → A := fun k => g (idx k)
+
+    unfold ars_terminating at ht
+    apply ht
+    use f
+
+    -- again, this works, but I don't know how to manually prove this
+    grind
   constructor
   · constructor
   · -- UFF, this part could be hard again and I can barely reuse existing lemma, or can I?
