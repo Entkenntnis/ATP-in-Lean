@@ -377,14 +377,16 @@ lemma terminating_then_wellfounded_partial_ordering
       intro k; induction k with
       | zero => simp [idx]
       | succ k ih =>
-        -- I would like to use this, but it's not working
-        -- by_cases h : (idx k) < n
-
-        -- resorting to this, glad it works
-        -- but note: I'm not able to reproduce this proof here
-        -- because I don't know how to properly handle Nat.rec
-
-        grind
+        cases lt_or_eq_of_le (Nat.lt_succ_iff.mp ih) with
+        | inl hklt =>
+          -- I really don't understand how this simp is arriving at the correct solution
+          -- ???
+          -- but it works kinda
+          simp [idx, (ne_of_lt hklt)]
+          exact hklt
+        | inr hEq =>
+          -- if idx k = n, then idx (k+1) = 0 < n+1
+          simp [idx, hEq]
 
     let f : ℕ → A := fun k => g (idx k)
 
@@ -396,8 +398,31 @@ lemma terminating_then_wellfounded_partial_ordering
     grind
   constructor
   · constructor
-  · -- UFF, this part could be hard again and I can barely reuse existing lemma, or can I?
-    sorry
+  · rw [wellFounded_iff_isEmpty_descending_chain]
+    refine Subtype.isEmpty_of_false ?_
+    intro f
+    rw [not_forall]
+    unfold from_GT
+
+    unfold ars_terminating at ht
+    rw [not_exists] at ht
+    specialize ht f
+
+    rw [not_forall] at ht
+    obtain ⟨ x, hx ⟩ := ht
+    use x
+    have sub : R ⊆ ars_transitive_closure R  := by
+      intro h hh
+      unfold ars_transitive_closure
+      rw [Set.mem_iUnion]
+      use 0
+      simp
+      unfold ars_power comp ars_power
+      simp
+      exact hh
+
+    -- AAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHH!!!
+    -- I still got this wrong
 
 end Orderings
 
