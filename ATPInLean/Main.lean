@@ -371,7 +371,7 @@ lemma terminating_then_wellfounded_partial_ordering
     rcases Set.mem_iUnion.mp ra with ⟨ n, hn ⟩
     obtain ⟨ g, ⟨ g0, g1, g2 ⟩ ⟩ := ars_path_function_between_two_transitive_elements R (n + 1) a a hn
 
-      -- idx always stays within [0, n + 1)
+    -- idx always stays within [0, n + 1)
     let idx : ℕ → ℕ := Nat.rec 0 (fun _ i => if i = n then 0 else i + 1)
     have idx_lt : ∀ k, idx k < n + 1 := by
       intro k; induction k with
@@ -393,13 +393,61 @@ lemma terminating_then_wellfounded_partial_ordering
     unfold ars_terminating at ht
     apply ht
     use f
-
     -- again, this works, but I don't know how to manually prove this
     grind
   constructor
   · constructor
-  · have h: WellFounded (from_GT R) :=
-      sorry
+  ·
+
+    -- AI generated part, review and rewrite for better understanding
+    -- AT LEAST IT WORKS!!!!!!!!
+    -- REALLY NICE!!!!
+    have h: WellFounded (from_GT R) := by
+      classical
+      -- Prove by contradiction: if not well-founded, build an infinite forward chain in R
+      by_contra hWF
+      -- From ¬WellFounded r we get ∃ a, ¬Acc r a
+      have not_all_acc : ¬ (∀ a, Acc (from_GT R) a) := by
+        intro allAcc
+        exact hWF ⟨allAcc⟩
+      have ⟨a0, ha0⟩ : ∃ a, ¬ Acc (from_GT R) a := by
+        exact not_forall.mp not_all_acc
+      -- From a point not accessible, there is a predecessor which is also not accessible
+      have exists_pred_not_acc : ∀ x, ¬ Acc (from_GT R) x →
+          ∃ y, (from_GT R) y x ∧ ¬ Acc (from_GT R) y := by
+        intro x hx
+        classical
+        by_contra hno
+        -- hno : ¬ ∃ y, (from_GT R) y x ∧ ¬ Acc (from_GT R) y
+        have hforall : ∀ y, ¬ ((from_GT R) y x ∧ ¬ Acc (from_GT R) y) := by
+          simpa [not_exists] using hno
+        have hxacc : Acc (from_GT R) x := by
+          refine Acc.intro (x := x) ?pred
+          intro y hy
+          have : ¬ ¬ Acc (from_GT R) y := by
+            have hny : ¬ ((from_GT R) y x ∧ ¬ Acc (from_GT R) y) := hforall y
+            by_contra hnotacc
+            exact hny ⟨hy, hnotacc⟩
+          exact not_not.mp this
+        exact hx hxacc
+      -- Build a sequence of non-accessible elements following predecessors
+      let g : ℕ → {x // ¬ Acc (from_GT R) x} :=
+        Nat.rec ⟨a0, ha0⟩ (fun _ p =>
+          let ex := exists_pred_not_acc p.1 p.2
+          ⟨Classical.choose ex, (Classical.choose_spec ex).2⟩)
+      let f : ℕ → A := fun n => (g n).1
+      have step_fromGT : ∀ n, (from_GT R) (f (n+1)) (f n) := by
+        intro n
+        -- by construction of g, the (n+1)-th element is a predecessor of the n-th
+        simpa [f, g] using
+          (Classical.choose_spec (exists_pred_not_acc (g n).1 (g n).2)).1
+      -- This yields a forward infinite chain in R, contradicting termination
+      have step_R : ∀ n, (f n, f (n+1)) ∈ R := by
+        intro n; simpa [from_GT] using step_fromGT n
+      unfold ars_terminating at ht
+      apply ht
+      refine ⟨f, ?_⟩
+      intro n; exact step_R n
 
     have h': WellFounded (Relation.TransGen (from_GT R)) := by
       exact WellFounded.transGen h
@@ -454,79 +502,21 @@ lemma terminating_then_wellfounded_partial_ordering
         -- Apply the helper to our concrete `n`
         exact tc_power_to_transGen hn
 
-      sorry
-      -- -- Build Acc for the closure using Acc on TransGen
-      -- refine Acc.recOn (motive := fun x _ => Acc (fun a b ↦ (b, a) ∈ ars_transitive_closure R) x) ml ?_
-      -- intro x hx ih
-      -- refine Acc.intro ?_
-      --   intro y hy
-      --   -- hy: (x, y) ∈ ars_transitive_closure R with flipped args in goal
-      --   have hyT : Relation.TransGen (fun a b ↦ (b, a) ∈ R) y x := tc_to_transGen hy
-      -- -- Use the induction hypothesis along the TransGen edge
-      -- exact ih y hyT
+    -- Build Acc for the closure using Acc on TransGen
+      refine Acc.ndrecOn ml (fun x hx ih => by
+        -- We must show Acc (closure) x, given IH for all predecessors along TransGen of R
+        refine Acc.intro (x := x) ?_
+        intro y hy
+        -- hy: (y, x) ∈ ars_transitive_closure R (note the closure is on pairs (a,b) with (b,a) ∈ ...)
+        have hyT : Relation.TransGen (fun a b ↦ (b, a) ∈ R) y x := tc_to_transGen hy
+        -- Use the induction hypothesis along the TransGen edge
+        exact ih y hyT)
 
-      -- sorry
+        -- #check Acc.ndrecOn
 
+        -- Acc.ndrecOn.{u1, u2} {α : Sort u2} {r : α → α → Prop} {C : α → Sort u1} {a : α} (n : Acc r a)
+    -- (m : (x : α) → (∀ (y : α), r y x → Acc r y) → ((y : α) → r y x → C y) → C x) : C a
     exact h''
-
-
-    -- unfold from_GT
-    -- constructor
-    -- have h₃ := WellFounded.apply h'
-    -- intro a
-    -- specialize h₃ a
-
-    -- have eq : Relation.TransGen (from_GT R) = (fun a b ↦ (b, a) ∈ ars_transitive_closure R) := by
-    --   ext a b
-    --   unfold from_GT
-
-
-
-
-
-    -- rw [wellFounded_iff_isEmpty_descending_chain]
-    -- refine Subtype.isEmpty_of_false ?_
-    -- intro f
-    -- rw [not_forall]
-    -- unfold from_GT
-
-    -- unfold ars_terminating at ht
-    -- rw [not_exists] at ht
-    -- specialize ht f
-
-    -- rw [not_forall] at ht
-    -- obtain ⟨ x, hx ⟩ := ht
-    -- use x
-
-    -- -- TODO
-    -- by_contra h
-    -- unfold ars_transitive_closure at h
-    -- rw [Set.mem_iUnion] at h
-    -- obtain ⟨ i, hi ⟩ := h
-    -- by_cases h : i = 0
-    -- · rw [h] at hi
-    --   simp at hi
-    --   unfold ars_power at hi
-    --   unfold comp ars_power at hi
-    --   simp at hi
-    --   contradiction
-    -- ·
-    --   sorry
-
-
-
-    -- have sub : R ⊆ ars_transitive_closure R  := by
-    --   intro h hh
-    --   unfold ars_transitive_closure
-    --   rw [Set.mem_iUnion]
-    --   use 0
-    --   simp
-    --   unfold ars_power comp ars_power
-    --   simp
-    --   exact hh
-
-    -- -- AAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHH!!!
-    -- -- I still got this wrong
 
 end Orderings
 
