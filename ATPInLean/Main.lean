@@ -124,8 +124,46 @@ def ars_power : ℕ → Set (A × A) → Set (A × A)
 
 def ars_identity : Set (A × A) → Set (A × A) := ars_power 0
 
-def asr_transitive_closure : Set (A × A) :=
+def ars_transitive_closure : Set (A × A) :=
   ⋃ n : ℕ, ars_power (n + 1) r
+
+theorem ars_transitive_closure_trans (a b c: A) :
+  (a, b) ∈ (ars_transitive_closure r) → (b, c) ∈ (ars_transitive_closure r) →
+  (a, c) ∈ (ars_transitive_closure r) := by
+  unfold ars_transitive_closure
+  intro hab hbc
+  -- Unfold the unions to obtain concrete path lengths n and m
+  rcases Set.mem_iUnion.mp hab with ⟨n, h_ab⟩
+  rcases Set.mem_iUnion.mp hbc with ⟨m, h_bc⟩
+  -- Compose a length-(n+1) path a→b with a length-(m+1) path b→c
+  have compose_len : ∀ (m : ℕ), ∀ c, (b, c) ∈ ars_power (m + 1) r → (a, c) ∈ ars_power (n + m + 2) r := Nat.rec
+    (by
+      simp
+      intro c hbc
+      rw [ars_power] at hbc
+      rw [ars_power] at hbc
+      unfold comp at hbc
+      simp at hbc
+      unfold ars_power comp
+      simp
+      use b
+    )
+    (by
+      -- quite a lot of magic is happening in the last intro
+      -- it can look through a lot of definitions and arrive at the ∃ in comp in ars_power
+      intro m ih c ⟨ x, hx ⟩
+      unfold ars_power comp
+      simp
+      use x
+      constructor
+      · apply ih
+        exact hx.left
+      · exact hx.right
+    )
+  -- Package the concrete path length back into the union
+  refine Set.mem_iUnion.mpr ?_
+  refine ⟨n + m + 1, ?_⟩
+  exact compose_len m c h_bc
 
 def ars_reflexive_transitive_closure : Set (A × A) :=
   ⋃ n : ℕ, ars_power n r
@@ -140,7 +178,7 @@ def ars_symmetric_closure : Set (A × A) :=
   r ∪ ars_inverse r
 
 def ars_transitive_symmetric_closure : Set (A × A) :=
-  asr_transitive_closure (ars_symmetric_closure r)
+  ars_transitive_closure (ars_symmetric_closure r)
 
 def ars_equivalence_closure : Set (A × A) :=
   ars_reflexive_transitive_closure (ars_symmetric_closure r)
@@ -239,6 +277,7 @@ variable {A : Type*}
 def from_GT (R : Set (A × A)) :=
   fun a b => (b, a) ∈ R
 
+-- general question: should I use classes?
 
 -- Well-Foundedness and Termination
 -- Lemma 1.3.1
@@ -269,13 +308,16 @@ lemma wellfounded_order_subset_ars_terminating
 lemma terminating_then_wellfounded_partial_ordering
   (R: Set (A × A)) :
   ARS.ars_terminating R →
-    IsStrictOrder A (from_GT (ARS.asr_transitive_closure R)) ∧
-    WellFounded (from_GT (ARS.asr_transitive_closure R))
+    IsStrictOrder A (from_GT (ARS.ars_transitive_closure R)) ∧
+    WellFounded (from_GT (ARS.ars_transitive_closure R))
    := by
   intro ht
-  let rel := (from_GT (ARS.asr_transitive_closure R))
+  let rel := (from_GT (ARS.ars_transitive_closure R))
   have a : IsTrans A rel := by
-    sorry
+    constructor
+    intro a b c
+    unfold rel from_GT
+    exact fun a_1 a_2 ↦ ARS.ars_transitive_closure_trans R c b a a_2 a_1
   have b: IsIrrefl A rel := by
     sorry
   constructor
