@@ -177,4 +177,92 @@ lemma terminating_then_wellfounded_partial_ordering
 
     rwa [transgen_mem_iff_ars_transitive_closure]
 
+-- instWellFoundedLTNat: < is well founded in ℕ
+
+-- Mathlib.Data.List.Lex: lexicographic orderings
+
+-- Mathlib.Data.List.Shortlex: length-based ordering on words
+
+-- Lex on List A is not well founded
+
+inductive E where
+| a | b
+
+-- only a < b
+def E_lt := fun x y =>
+  x = E.a ∧ y = E.b
+
+lemma E_wf : IsWellFounded E E_lt := by
+  constructor
+  constructor
+  intro x
+  cases x
+  · constructor
+    intro y
+    cases y <;> simp [E_lt]
+  · constructor
+    intro y
+    cases y
+    · simp [E_lt]
+      constructor
+      intro y
+      cases y <;> simp [E_lt]
+    · simp [E_lt]
+
+lemma E_po : IsStrictOrder E E_lt := by
+  refine { toIsIrrefl := ?_, toIsTrans := ?_ }
+  · -- irrefl
+    constructor
+    intro x
+    cases x <;> simp [E_lt]
+  · -- trans
+    constructor
+    intro x y z r1 r2
+    cases x <;> cases y <;> cases z <;> simp [E_lt] at r1 r2
+
+example : ¬ WellFounded (List.Lex E_lt) := by
+  -- recreate classical counter example b, ab, aab, ...
+  let f : ℕ → List E := fun n => List.replicate n E.a ++ [E.b]
+
+  intro h
+  have has_min := h.has_min
+
+  let infinite := Set.range f
+  specialize has_min infinite
+
+  have has_el : infinite.Nonempty := by
+    refine ⟨ [E.b], ?_ ⟩
+    simp [infinite]
+    use 0
+    simp [f]
+
+  specialize has_min has_el
+  have has_min_nn := not_not.mpr has_min
+  apply has_min_nn
+  rw [not_exists]
+  simp
+  intro x hx
+  have tmp := Set.mem_range.mp hx
+  obtain ⟨ y, hy ⟩ := tmp
+  use (f (y + 1))
+  constructor
+  · simp [f, infinite]
+  · rw [(Eq.symm hy)]
+
+    -- induction necessary here
+    have aux : ∀ n,  List.Lex E_lt (f (n + 1)) (f n) := by
+      intro n
+      induction n with
+      | zero =>
+          simp [f]
+          apply List.Lex.rel
+          simp [E_lt]
+      | succ n ih =>
+          simp [f] at ih ⊢
+          -- append a and use ih for the step
+          have hnext := List.Lex.cons (a := E.a) ih
+          assumption
+
+    exact aux y
+
 end Orderings
