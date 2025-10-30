@@ -265,4 +265,86 @@ example : ¬ WellFounded (List.Lex E_lt) := by
 
     exact aux y
 
+-- Lemma 1.3.3 ->
+-- #check WellFounded.wellFounded_iff_has_min
+
+-- Lemma 1.3.4 ->
+-- #check WellFounded.prod_lex
+
+lemma prod_lex_rev {ra rb: A -> A -> Prop} (h: WellFounded (Prod.Lex ra rb)):
+  WellFounded ra ∧ WellFounded rb := by
+  constructor; all_goals
+    rw [wellFounded_iff_isEmpty_descending_chain]
+    by_contra h₁
+    rw [not_isEmpty_iff] at h₁
+    have ⟨ f, hf ⟩  := Classical.choice h₁
+
+    -- have descending chain
+    let f' : ℕ → A × A := fun n => (f n, f 0)
+    let f'' : ℕ → A × A := fun n => (f 0, f n)
+
+    rw [wellFounded_iff_isEmpty_descending_chain] at h
+    apply (not_not_intro h)
+    rw [not_isEmpty_iff]
+    constructor
+    first
+    | refine ⟨ f', ?_ ⟩; grind
+    | refine ⟨ f'', ?_ ⟩; grind
+
+-- Lemma 1.3.5
+-- #check StrictMono.wellFoundedLT
+
+-- Theorem 1.3.6
+-- #check WellFounded.induction
+-- differences WellFoundedLT vs WellFounded?
+
+-- Theorem 1.3.7
+-- Well-Founded (Noetherian) Recursion: existence and uniqueness via `WellFounded.fix`.
+theorem wellFounded_recursion
+  {M : Type*} {S : Type*} {r : M → M → Prop}
+  (h : WellFounded r)
+  (φ : ∀ x : M, (∀ y, r y x → S) → S) :
+  ∃! f : M → S, ∀ x, f x = φ x (fun y _ => f y) := by
+  use h.fix φ
+  simp
+  constructor
+  · -- f has required properties
+    simpa using h.fix_eq φ
+  · -- uniqueness
+    intro g hg
+    funext x
+    apply h.induction x (C := fun x => g x = h.fix φ x)
+    intro z hz
+    rw [hg z]
+    rw [h.fix_eq φ z]
+
+
+    sorry
+
+theorem wellFounded_recursion______
+  {M : Type*} {S : Type*} {r : M → M → Prop}
+  (h : WellFounded r)
+  (φ : ∀ x : M, (∀ y, r y x → S) → S) :
+  ∃! f : M → S, ∀ x, f x = φ x (fun y _hy => f y) := by
+
+
+
+  classical
+  refine ⟨h.fix (C := fun _ => S) φ, ?_, ?_⟩
+  · intro x
+    simpa using (h.fix_eq (C := fun _ => S) φ x)
+  · intro g hg
+    funext x
+    -- Uniqueness by well-founded induction on x
+    refine (h.induction x (C := fun x => g x = h.fix (C := fun _ => S) φ x) ?_)
+    intro x ih
+    have hxg : g x = φ x (fun y hy => g y) := hg x
+    have hxf : h.fix (C := fun _ => S) φ x = φ x (fun y hy => h.fix (C := fun _ => S) φ y) := by
+      simpa using (h.fix_eq (C := fun _ => S) φ x)
+    calc
+      g x = φ x (fun y hy => g y) := hxg
+      _ = φ x (fun y hy => h.fix (C := fun _ => S) φ y) := by
+            apply congrArg (fun k => φ x k); funext y hy; exact ih y hy
+      _ = h.fix (C := fun _ => S) φ x := by simp [hxf.symm]
+
 end Orderings
