@@ -1,5 +1,8 @@
 import Mathlib.Data.Set.Basic
+import Mathlib.Data.Nat.Prime.Basic
 import ATPInLean.Sections.«02_AbstractReductionSystem»
+
+import Mathlib.Tactic
 
 -- ===================================================
 -- Mostly ASR, with some elements from Orderings
@@ -160,5 +163,36 @@ example : S ≠ S' ∧ S ≠ S'' ∧ S' ≠ S'' := by
         contradiction
     rw [h] at hyyNotS'
     contradiction
+
+
+-- Exercise 1.4
+--  Let (N \ {0, 1}, <_d) be the set of natural numbers larger than 1 ordered
+--  by the divisibility ordering <_d that is defined by a <_d b if a divides b and a ≠ b. Are
+--  there minimal elements? Is there a smallest element? What do they look like?
+
+def ltDvd (a b : ℕ) := a ∣ b ∧ a ≠ b
+
+def minimal (a : ℕ) : Prop := ¬ ∃ b : ℕ, 1 < b ∧ ltDvd b a
+
+lemma two_minimal: minimal 2 := by
+  unfold minimal
+  intro ⟨ x , hx ⟩
+  unfold ltDvd at hx
+  obtain ⟨ a, b, c ⟩ := hx
+  apply c
+  apply Nat.le_of_dvd at b <;> linarith
+
+lemma no_smallest : ¬ ∃ s : ℕ, 1 < s ∧ ∀ x : ℕ, 1 < x → s ∣ x := by
+  intro ⟨ e, ⟨ he, h ⟩ ⟩
+  specialize h (e + 1)
+  simp at h
+  grind
+
+lemma minimal_iff_prime (a : ℕ) (ha: 1 < a) : minimal a  ↔ Nat.Prime a := by
+  sorry
+
+
+-- Exercise 1.5 would be nice, too
+
 
 end ExerciseSheet1
