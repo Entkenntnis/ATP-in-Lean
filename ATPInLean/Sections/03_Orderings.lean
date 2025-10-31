@@ -315,36 +315,14 @@ theorem wellFounded_recursion
     funext x
     apply h.induction x (C := fun x => g x = h.fix φ x)
     intro z hz
-    rw [hg z]
-    rw [h.fix_eq φ z]
-
-
-    sorry
-
-theorem wellFounded_recursion______
-  {M : Type*} {S : Type*} {r : M → M → Prop}
-  (h : WellFounded r)
-  (φ : ∀ x : M, (∀ y, r y x → S) → S) :
-  ∃! f : M → S, ∀ x, f x = φ x (fun y _hy => f y) := by
-
-
-
-  classical
-  refine ⟨h.fix (C := fun _ => S) φ, ?_, ?_⟩
-  · intro x
-    simpa using (h.fix_eq (C := fun _ => S) φ x)
-  · intro g hg
-    funext x
-    -- Uniqueness by well-founded induction on x
-    refine (h.induction x (C := fun x => g x = h.fix (C := fun _ => S) φ x) ?_)
-    intro x ih
-    have hxg : g x = φ x (fun y hy => g y) := hg x
-    have hxf : h.fix (C := fun _ => S) φ x = φ x (fun y hy => h.fix (C := fun _ => S) φ y) := by
-      simpa using (h.fix_eq (C := fun _ => S) φ x)
     calc
-      g x = φ x (fun y hy => g y) := hxg
-      _ = φ x (fun y hy => h.fix (C := fun _ => S) φ y) := by
-            apply congrArg (fun k => φ x k); funext y hy; exact ih y hy
-      _ = h.fix (C := fun _ => S) φ x := by simp [hxf.symm]
+      g z = φ z fun y _ ↦ g y := hg z
+      _ = φ z (fun y _ => h.fix φ y) := by
+        apply congrArg -- useful
+        funext l hl -- this is magical, especially here because the function gets
+                    -- the proof of it's argument small-than which I can use to do some stuff
+        exact hz l hl
+      _ = h.fix φ z := by
+        rw [Eq.symm (h.fix_eq φ z)]
 
 end Orderings
